@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Game Details</title>
+    <script>
+        async function fetchAppId(gameName) {
+            const searchApiUrl = `http://steamcommunity.com/actions/SearchApps/${encodeURIComponent(gameName)}`;
+            try {
+                const response = await fetch(searchApiUrl);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.length > 0) {
+                    return data[0].appid; // Return the first app ID found
+                } else {
+                    throw new Error("Game not found.");
+                }
+            } catch (error) {
+                console.error("Error fetching app ID:", error);
+                return null;
+            }
+        }
+
+        async function fetchSteamGameDetails(appId) {
+            const apiUrl = `http://store.steampowered.com/api/appdetails?appids=${appId}`;
+
+            try {
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data[appId] && data[appId].success) {
+                    const gameData = data[appId].data;
+                    const releaseDate = gameData.release_date.date;
+                    const totalReviews = gameData.recommendations ? gameData.recommendations.total : "N/A";
+
+                    document.getElementById("releaseDate").textContent = `Release Date: ${releaseDate}`;
+                    document.getElementById("totalReviews").textContent = `Total Reviews: ${totalReviews}`;
+                } else {
+                    document.getElementById("releaseDate").textContent = "Failed to fetch game details.";
+                    document.getElementById("totalReviews").textContent = "";
+                }
+            } catch (error) {
+                console.error("Error fetching game details:", error);
+                document.getElementById("releaseDate").textContent = "Error fetching game details.";
+                document.getElementById("totalReviews").textContent = "";
+            }
+        }
+
+        async function fetchGameDetailsByName() {
+            const gameName = document.getElementById("gameName").value;
+            const appId = await fetchAppId(gameName);
+            if (appId) {
+                await fetchSteamGameDetails(appId);
+            } else {
+                document.getElementById("releaseDate").textContent = "Unable to fetch game details without a valid app ID.";
+                document.getElementById("totalReviews").textContent = "";
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Steam Game Details</h1>
+    <label for="gameName">Enter Game Name:</label>
+    <input type="text" id="gameName" placeholder="Game Name">
+    <button onclick="fetchGameDetailsByName()">Fetch Details</button>
+
+    <div id="gameDetails">
+        <p id="releaseDate"></p>
+        <p id="totalReviews"></p>
+    </div>
+</body>
+</html>
