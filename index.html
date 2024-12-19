@@ -3,81 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steam Game Details</title>
-    <script>
-        async function fetchAppId(gameName) {
-            const searchApiUrl = `http://steamcommunity.com/actions/SearchApps/${encodeURIComponent(gameName)}`;
-            try {
-                const response = await fetch(searchApiUrl);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                if (data.length > 0) {
-                    return data[0].appid; // Return the first app ID found
-                } else {
-                    throw new Error("Game not found.");
-                }
-            } catch (error) {
-                console.error("Error fetching app ID:", error);
-                return null;
-            }
+    <title>Gastora's Revenue Estimator</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #estimatedRevenue {
+            font-size: 1.5rem;
+            font-weight: bold;
         }
-
-        async function fetchSteamGameDetails(appId) {
-            const apiUrl = `http://store.steampowered.com/api/appdetails?appids=${appId}`;
-
-            try {
-                const response = await fetch(apiUrl);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                if (data[appId] && data[appId].success) {
-                    const gameData = data[appId].data;
-                    const releaseDate = gameData.release_date.date;
-                    const totalReviews = gameData.recommendations ? gameData.recommendations.total : "N/A";
-
-                    document.getElementById("releaseDate").textContent = `Release Date: ${releaseDate}`;
-                    document.getElementById("totalReviews").textContent = `Total Reviews: ${totalReviews}`;
-                } else {
-                    document.getElementById("releaseDate").textContent = "Failed to fetch game details.";
-                    document.getElementById("totalReviews").textContent = "";
-                }
-            } catch (error) {
-                console.error("Error fetching game details:", error);
-                document.getElementById("releaseDate").textContent = "Error fetching game details.";
-                document.getElementById("totalReviews").textContent = "";
-            }
+        #finalRevenue {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-top: 1rem;
         }
-
-        async function fetchGameDetailsByName() {
-            const gameName = document.getElementById("gameName").value;
-            const appId = await fetchAppId(gameName);
-            if (appId) {
-                await fetchSteamGameDetails(appId);
-            } else {
-                document.getElementById("releaseDate").textContent = "Unable to fetch game details without a valid app ID.";
-                document.getElementById("totalReviews").textContent = "";
-            }
-        }
-    </script>
+    </style>
 </head>
 <body>
-    <h1>Steam Game Details</h1>
-    <label for="gameName">Enter Game Name:</label>
-    <input type="text" id="gameName" placeholder="Game Name">
-    <button onclick="fetchGameDetailsByName()">Fetch Details</button>
-
-    <div id="gameDetails">
-        <p id="releaseDate"></p>
-        <p id="totalReviews"></p>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="text-center">Gastora's Steam Revenue Estimator</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="gamePrice">Game Purchase Price (in USD):</label>
+                            <input type="number" class="form-control" id="gamePrice" step="0.01" value="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="reviewCount">Review Count:</label>
+                            <input type="number" class="form-control" id="reviewCount" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="taxRate">Tax Rate (in %):</label>
+                            <input type="number" class="form-control" id="taxRate" step="1" value="50">
+                        </div>
+                        <meta itemprop="reviewCount" content="5000" id="reviewCountMeta">
+                        <button id="calculateButton" class="btn btn-primary btn-block">Calculate Revenue</button>
+                        <div id="estimatedRevenue" class="mt-3 text-center" style="display: none;">
+                            <!-- Placeholder for revenue estimate -->
+                        </div>
+                        <div id="finalRevenue" class="text-center" style="display: none;">
+                            <!-- Placeholder for final revenue -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        function updateValues() {
+            const gamePrice = document.getElementById('gamePrice').value;
+            const reviewCount = document.getElementById('reviewCount').value;
+            const taxRate = document.getElementById('taxRate').value;
+
+            document.getElementById('reviewCountMeta').setAttribute('content', reviewCount);
+            calculateAndDisplayRevenue();
+        }
+
+        function getBasePrice() {
+            const priceFinal = jQuery('div[class="game_purchase_price price"]').attr("data-price-final");
+            if (priceFinal) {
+                return priceFinal;
+            }
+
+            const originalPriceText = jQuery('div[class="discount_original_price"]').first().text();
+            if (originalPriceText) {
+                return originalPriceText.replace(/\D/g, '');
+            }
+
+            return 0;
+        }
+
+        function numberWithCommas(x) {
+            return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function calculateAndDisplayRevenue() {
+            const totalReviews = document.getElementById('reviewCount').value;
+            const estimatedSales = totalReviews * 30;
+            const price = parseFloat(document.getElementById('gamePrice').value).toFixed(2);
+            const priceCurrency = "USD"; // Default currency
+            const taxRate = parseFloat(document.getElementById('taxRate').value) / 100;
+            const estimatedRevenue = (estimatedSales * price * (1 - taxRate)).toFixed(2);
+
+            const revenueString = `From ${numberWithCommas(totalReviews)} reviews, we estimate ~${numberWithCommas(estimatedSales)} sales ` +
+                `@ ${priceCurrency} ${price}. With ${(taxRate * 100)}% lost to tax, this game may have made around `;
+
+            document.getElementById('estimatedRevenue').textContent = revenueString;
+            document.getElementById('finalRevenue').textContent = `$${numberWithCommas(estimatedRevenue)}`;
+            document.getElementById('estimatedRevenue').style.display = 'block';
+            document.getElementById('finalRevenue').style.display = 'block';
+        }
+
+        // Update calculation on button click
+        document.getElementById('calculateButton').addEventListener('click', updateValues);
+    </script>
 </body>
 </html>
